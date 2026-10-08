@@ -207,7 +207,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
   </section>
 </div>
-<footer>2026 最新整合版</footer>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
   <div class="card">
@@ -223,23 +222,47 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </div>
 
+<script src="https://unpkg.com/reicon@1.2.1"></script>
 <script>
 const $=id=>document.getElementById(id), SK='gemini_api_key_travel_planner';
 const store={get:()=>{try{return localStorage.getItem(SK)}catch(e){return null}},set:v=>{try{localStorage.setItem(SK,v)}catch(e){}},del:()=>{try{localStorage.removeItem(SK)}catch(e){}}};
+
+// reicon 圖示（取代 💾 🗑 ⚡）
+const R=window.reicon||{};if(!window.reicon)console.warn('reicon 載入失敗');
+const IC={'💾':R.Floppy2,'🗑':R.Trash6,'⚡':R.Flash2},IRE=/(💾|🗑\uFE0F?|⚡\uFE0F?)/u;
+function swap(root){
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
+  while(w.nextNode())nodes.push(w.currentNode);
+  nodes.forEach(n=>{
+    const p=n.parentElement;
+    if(!p||p.tagName==='SCRIPT'||p.tagName==='NOSCRIPT'||!IRE.test(n.nodeValue))return;
+    const big=!!p.closest('.ib'),f=document.createDocumentFragment();
+    n.nodeValue.split(IRE).forEach(s=>{
+      const fn=IC[s.replace(/\uFE0F/g,'')];
+      if(!fn){f.append(s);return}
+      let e=fn({size:big?20:14,color:'currentColor'});
+      if(typeof e==='string'){const d=document.createElement('span');d.innerHTML=e;e=d.firstElementChild}
+      if(!big)e.style.verticalAlign='-.2em';
+      f.append(e);
+    });
+    n.replaceWith(f);
+  });
+}
+swap(document.body);
 
 // cursor glow
 addEventListener('pointermove',e=>{$('glow').style.transform=`translate(${e.clientX-260}px,${e.clientY-260}px)`});
 
 const key=$('key'),model=$('model'),custom=$('custom-model');
 const getModel=()=>model.value==='custom'?custom.value.trim():model.value;
-const hint=(t,c)=>{$('model-hint').textContent=t;$('model-hint').style.color=c||''};
-function showError(m){const b=$('error');if(m){$('error-text').textContent=m;b.classList.add('on');scrollTo({top:0,behavior:'smooth'})}else b.classList.remove('on')}
+const hint=(t,c)=>{$('model-hint').textContent=t;$('model-hint').style.color=c||'';swap($('model-hint'))};
+function showError(m){const b=$('error');if(m){$('error-text').textContent=m;swap($('error-text'));b.classList.add('on');scrollTo({top:0,behavior:'smooth'})}else b.classList.remove('on')}
 function status(s,t){$('dot').className='dot '+s;$('st-text').textContent=t}
 function loading(btn,sp,on){btn.disabled=on;sp.classList.toggle('hidden',!on)}
 
 const saved=store.get(); if(saved){key.value=saved;detect(saved,true)}
 model.onchange=()=>{const c=model.value==='custom';custom.classList.toggle('hidden',!c);hint(c?'請輸入完整模型代碼（如 gemini-3.6-flash）':'已選擇模型：'+model.value)};
-$('save').onclick=()=>{const k=key.value.trim();if(!k)return showError('請先輸入 API Key');store.set(k);$('save').textContent='✓';setTimeout(()=>$('save').textContent='💾',1800)};
+$('save').onclick=()=>{const k=key.value.trim();if(!k)return showError('請先輸入 API Key');store.set(k);$('save').textContent='✓';setTimeout(()=>{$('save').textContent='💾';swap($('save'))},1800)};
 $('clear').onclick=()=>{store.del();key.value='';status('','尚未測試');hint('按下 ⚡ 自動偵測可用的最佳模型')};
 $('test').onclick=()=>{const k=key.value.trim();if(!k)return showError('請輸入 API Key 後再測試');showError(null);detect(k,false)};
 
