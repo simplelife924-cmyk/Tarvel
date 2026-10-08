@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI旅遊提示詞產生師</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAVCAYAAACt4nWrAAABtUlEQVR42rVVMWvbQBT+Tjhk6BDwEA66m0IDHePB76YsQUPBIDoWumnN4qXEKGTOL/ASyJIpi0QozpCepgwldOjgH9BwwobQrZDhZfEJWTrJErQfHNK9d/e9e+8+3oGZ0TSIiLvYi8NDA5RSLKWEUorb2MvooQXKRFLKNtvakXchLMLbVpIuGTWS1y08/XzbOC9z2OEVjW8+vqsEOD8knF0eAwCm0ykA4OzyGOeHVJutzdjbVrevD2lOHEVRHsDaXTDGQGstNsif/mT49eEFSinWWsMYk/uiKNr4Fkm21lxrLfbunzupodOFWqxPn9eumEF53hRAEBG7yN//3IGUEsYYMDOEEBXNl4NW4OoZfx9v2Hy/YiLi+XzOy+WSmZmJiIMg4CAImIh4sVhYn7O3CGZ2Surk0xEuru9qDzWbzdDv9zEejzfsxQvuuYiHw2FOPJlM4Ps+siwDAKxWK4RhiMFgYEl4f/cLHn/8xtuDb/W9xUoQAJIkAQD4vo8kSfIAYRg2ys9Z83V/5jiOOY5jtij+u3q43efyVxbUoelxICKnX4xGI26TYZqmomvLdarlX8HDf8QrU66tXKaOoG4AAAAASUVORK5CYII=">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0F2854;--deep:#1C4D8D;--sky:#4988C4;--mist:#BDE8F5;--line:rgba(189,232,245,.18)}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--ink);color:var(--mist);min-height:100vh;overflow-x:hidden;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:radial-gradient(60vw 50vh at 85% -10%,var(--deep),transparent 70%),radial-gradient(50vw 50vh at -10% 40%,rgba(73,136,196,.35),transparent 70%),var(--ink)}
+#glow{position:fixed;width:520px;height:520px;border-radius:50%;left:0;top:0;z-index:-1;pointer-events:none;background:radial-gradient(circle,rgba(189,232,245,.16),transparent 65%);transform:translate(-999px,-999px)}
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(20px,4vw,56px) clamp(16px,3vw,32px) 40px}
+/* hero */
+.hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding:24px 0 36px;border-bottom:1px solid var(--line)}
+.hero h1{font-family:'Bricolage Grotesque','Noto Sans TC',sans-serif;font-weight:800;font-size:clamp(2.6rem,8.5vw,6.6rem);line-height:1;letter-spacing:-.04em;color:#fff}
+.hero p{max-width:34em;margin-top:20px;color:var(--mist);opacity:.8}
+.mascot{width:clamp(120px,20vw,230px);image-rendering:pixelated;animation:bob 3.4s steps(6) infinite;filter:drop-shadow(0 18px 30px rgba(0,0,0,.4))}
+@keyframes bob{50%{transform:translateY(-14px)}}
+/* tabs */
+.tabs{display:flex;gap:6px;margin:28px 0;padding:5px;width:max-content;max-width:100%;border:1px solid var(--line);border-radius:999px;background:rgba(15,40,84,.6);backdrop-filter:blur(10px)}
+.tab{font:inherit;font-weight:500;color:var(--mist);background:none;border:0;padding:10px 22px;border-radius:999px;cursor:pointer;transition:background .25s,color .25s}
+.tab:hover{background:rgba(73,136,196,.25)}
+.tab.on{background:var(--mist);color:var(--ink)}
+/* ticket layout */
+.grid{display:grid;grid-template-columns:1.05fr .95fr;border-radius:28px;overflow:hidden;box-shadow:0 40px 80px -30px rgba(0,0,0,.6)}
+.stub{background:var(--mist);color:var(--ink);padding:clamp(22px,3.5vw,44px);display:flex;flex-direction:column;gap:20px;position:relative}
+.main{background:linear-gradient(160deg,var(--deep),#12376b);padding:clamp(22px,3.5vw,44px);display:flex;flex-direction:column;gap:16px;position:relative;border-left:2px dashed rgba(15,40,84,.5)}
+.stub::after,.main::before{content:"";position:absolute;right:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:var(--ink);z-index:2}
+.main::before{left:-14px;right:auto}
+.stub::before{content:"";position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:var(--ink);z-index:2}
+h2{font-family:'Bricolage Grotesque','Noto Sans TC',sans-serif;font-size:1.6rem;letter-spacing:-.02em;line-height:1.2}
+.main h2{color:#fff}
+label,.lbl{display:block;font-size:.85rem;font-weight:700;margin-bottom:6px}
+.hint{font-size:.78rem;opacity:.7;margin-top:6px}
+input,select,textarea{width:100%;font:inherit;font-size:.95rem;color:var(--ink);background:#fff;border:1.5px solid rgba(15,40,84,.18);border-radius:12px;padding:11px 14px;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:none;border-color:var(--sky);box-shadow:0 0 0 4px rgba(73,136,196,.35)}
+textarea{resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.keybox{background:rgba(255,255,255,.55);border:1px solid rgba(15,40,84,.12);border-radius:16px;padding:16px;display:grid;gap:14px}
+.keyrow{display:flex;gap:8px}
+.ib{flex:none;width:44px;border:0;border-radius:12px;cursor:pointer;color:#fff;background:var(--ink);display:grid;place-items:center;font-size:1.05rem;transition:transform .15s,background .2s}
+.ib:hover{transform:translateY(-2px);background:var(--deep)}
+.ib.t{background:var(--sky)}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:.78rem}
+.meta a,.meta button{color:var(--deep);background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline}
+.st{display:flex;align-items:center;gap:6px;background:#fff;border-radius:999px;padding:3px 10px;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;background:#9aa7b8}
+.dot.ok{background:#22c55e;box-shadow:0 0 8px #22c55e}.dot.err{background:#ef4444}.dot.wait{background:#facc15;animation:p 1s infinite}
+@keyframes p{50%{opacity:.3}}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;font:inherit;font-weight:700;border:0;border-radius:14px;padding:15px 20px;cursor:pointer;background:var(--ink);color:var(--mist);transition:transform .2s,background .2s,color .2s}
+.btn:hover:not(:disabled){transform:translateY(-2px);background:var(--deep);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.lt{background:var(--mist);color:var(--ink)}
+.btn.lt:hover:not(:disabled){background:#fff;color:var(--ink)}
+.spin{width:1rem;height:1rem;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{margin:0;font-weight:500;cursor:pointer}
+.chips input{position:absolute;opacity:0;width:0}
+.chips span{display:inline-block;padding:6px 14px;border-radius:999px;border:1.5px solid rgba(15,40,84,.3);font-size:.85rem;transition:all .2s}
+.chips input:checked+span{background:var(--ink);color:var(--mist);border-color:var(--ink)}
+.chips input:focus-visible+span{box-shadow:0 0 0 4px rgba(73,136,196,.45)}
+.sec{background:rgba(255,255,255,.55);border-radius:16px;padding:16px;border:1px solid rgba(15,40,84,.12)}
+.sec h4{font-size:.9rem;margin-bottom:10px}
+.out{flex:1;min-height:320px;background:rgba(15,40,84,.55);color:#fff;border:1.5px solid var(--line);line-height:1.8}
+.out::placeholder{color:rgba(189,232,245,.5)}
+.copy{font:inherit;font-size:.78rem;font-weight:700;background:var(--mist);color:var(--ink);border:0;border-radius:999px;padding:5px 14px;cursor:pointer}
+.bar{display:flex;justify-content:space-between;align-items:center}
+.err{display:none;margin-bottom:20px;padding:14px 18px;border-radius:14px;background:#fee2e2;color:#7f1d1d;font-weight:500}
+.err.on{display:block}
+footer{text-align:center;padding:28px;font-size:.8rem;opacity:.6}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,40,84,.8);backdrop-filter:blur(8px);display:none;place-items:center;padding:16px;z-index:50}
+.modal.on{display:grid}
+.card{background:var(--mist);color:var(--ink);border-radius:24px;max-width:520px;width:100%;padding:32px;position:relative}
+.card ol{padding-left:1.3em;margin:14px 0;display:grid;gap:8px;font-size:.92rem}
+.card a{color:var(--deep);font-weight:700}
+.x{position:absolute;top:14px;right:16px;font-size:1.6rem;background:none;border:0;cursor:pointer;color:var(--ink)}
+@media(max-width:860px){.grid{grid-template-columns:1fr}.main{border-left:0;border-top:2px dashed rgba(15,40,84,.5)}.stub::after{display:none}.hero{grid-template-columns:1fr}.mascot{order:-1;width:110px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="glow"></div>
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <h1>AI旅遊<br>提示詞產生師</h1>
+      <p>填好行程需求，勾選喜好，幾秒內就能拿到可直接貼進 Gemini 的 Deep Research 提示詞。</p>
+    </div>
+    <img class="mascot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAVCAYAAACt4nWrAAABtUlEQVR42rVVMWvbQBT+Tjhk6BDwEA66m0IDHePB76YsQUPBIDoWumnN4qXEKGTOL/ASyJIpi0QozpCepgwldOjgH9BwwobQrZDhZfEJWTrJErQfHNK9d/e9e+8+3oGZ0TSIiLvYi8NDA5RSLKWEUorb2MvooQXKRFLKNtvakXchLMLbVpIuGTWS1y08/XzbOC9z2OEVjW8+vqsEOD8knF0eAwCm0ykA4OzyGOeHVJutzdjbVrevD2lOHEVRHsDaXTDGQGstNsif/mT49eEFSinWWsMYk/uiKNr4Fkm21lxrLfbunzupodOFWqxPn9eumEF53hRAEBG7yN//3IGUEsYYMDOEEBXNl4NW4OoZfx9v2Hy/YiLi+XzOy+WSmZmJiIMg4CAImIh4sVhYn7O3CGZ2Surk0xEuru9qDzWbzdDv9zEejzfsxQvuuYiHw2FOPJlM4Ps+siwDAKxWK4RhiMFgYEl4f/cLHn/8xtuDb/W9xUoQAJIkAQD4vo8kSfIAYRg2ys9Z83V/5jiOOY5jtij+u3q43efyVxbUoelxICKnX4xGI26TYZqmomvLdarlX8HDf8QrU66tXKaOoG4AAAAASUVORK5CYII=" alt="像素風灰貓吉祥物">
+  </header>
+
+  <nav class="tabs" aria-label="功能頁籤">
+    <button class="tab on" id="tab-travel">旅遊行程規劃</button>
+    <button class="tab" id="tab-slides">簡報逐頁內容</button>
+  </nav>
+
+  <div id="error" class="err" role="alert"><strong>發生錯誤：</strong><span id="error-text"></span></div>
+
+  <section id="p-travel">
+    <div class="grid">
+      <div class="stub">
+        <div class="keybox">
+          <div class="row">
+            <div>
+              <label for="key">Google Gemini API Key</label>
+              <div class="keyrow">
+                <input type="password" id="key" placeholder="貼上 API Key（AQ. 或 AIza 開頭）" autocomplete="off">
+                <button type="button" class="ib" id="save" title="儲存至瀏覽器" aria-label="儲存">💾</button>
+                <button type="button" class="ib" id="clear" title="清除" aria-label="清除">🗑</button>
+                <button type="button" class="ib t" id="test" title="測試連線並偵測模型" aria-label="測試">⚡</button>
+              </div>
+              <div class="meta">
+                <button type="button" id="open-modal">如何取得 API Key？</button>
+                <span class="st"><i class="dot" id="dot"></i><span id="st-text">尚未測試</span></span>
+              </div>
+            </div>
+            <div>
+              <label for="model">AI 模型</label>
+              <select id="model">
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-3.1-flash">Gemini 3.1 Flash</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                <option value="custom">自訂模型（手動輸入）</option>
+              </select>
+              <input type="text" id="custom-model" class="hidden" style="margin-top:8px" placeholder="例如：gemini-3.6-flash">
+              <p class="hint" id="model-hint">按下 ⚡ 自動偵測可用的最佳模型</p>
+            </div>
+          </div>
+        </div>
+
+        <h2>1. 旅遊基本需求</h2>
+        <div>
+          <label for="dest">旅遊目的地</label>
+          <input type="text" id="dest" placeholder="自行輸入，或從下方選擇">
+          <select id="dest-select" style="margin-top:8px">
+            <option value="">— 或從熱門選項選擇 —</option>
+            <optgroup label="東北亞">
+              <option value="日本-東京">日本・東京</option><option value="日本-大阪">日本・大阪</option><option value="日本-京都">日本・京都</option><option value="日本-北海道(或札幌)">日本・北海道(或札幌)</option><option value="日本-沖繩">日本・沖繩</option><option value="韓國-首爾">韓國・首爾</option>
+            </optgroup>
+            <optgroup label="東南亞">
+              <option value="泰國-曼谷">泰國・曼谷</option><option value="越南-峴港">越南・峴港</option><option value="新加坡">新加坡</option>
+            </optgroup>
+          </select>
+        </div>
+        <div><label for="origin">出發地</label><input type="text" id="origin" placeholder="例如：台灣桃園(TPE)"></div>
+        <div><label for="days">旅遊天數</label><input type="text" id="days" placeholder="例如：5天4夜"></div>
+        <div>
+          <span class="lbl">旅遊人數</span>
+          <div class="row">
+            <div><label for="adults" style="font-weight:500">大人</label><input type="number" id="adults" min="1" placeholder="例如：1"></div>
+            <div><label for="kids" style="font-weight:500">小孩</label><input type="number" id="kids" min="0" placeholder="例如：1"></div>
+          </div>
+          <div id="ages-box" class="hidden" style="margin-top:12px"><label for="ages">小孩歲數（0–12 歲）</label><input type="text" id="ages" placeholder="用逗號分隔，例如：5,8"></div>
+        </div>
+        <div><label for="needs">特殊需求</label><textarea id="needs" rows="3" placeholder="例如：有帶長輩同行，行程請勿緊湊；希望有 2 天自由行之類的"></textarea></div>
+        <div><label for="budget">預算（每人）</label><input type="text" id="budget" placeholder="例如：TWD 30,000"></div>
+        <button class="btn" id="survey-btn"><span>AI 喜好調查規劃</span><i class="spin hidden" id="survey-spin"></i></button>
+        <div id="survey" class="hidden" style="display:grid;gap:12px">
+          <div class="sec"><h4>建議的旅遊關鍵字（可多選）</h4><div class="chips" id="kw"></div></div>
+          <div class="sec"><h4>航班喜好（單選）</h4><div class="chips" id="fl"></div></div>
+        </div>
+      </div>
+
+      <div class="main">
+        <h2>2. Deep Research 提示詞</h2>
+        <button class="btn lt" id="prompt-btn" disabled><span>旅遊計劃書初步探究</span><i class="spin hidden" id="prompt-spin"></i></button>
+        <div class="bar"><label for="prompt-out" style="margin:0">Gemini 提示詞（可編輯）</label><button class="copy" id="copy">複製</button></div>
+        <textarea id="prompt-out" class="out" placeholder="產生的 Gemini 提示詞會顯示在這裡"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section id="p-slides" class="hidden">
+    <div class="grid">
+      <div class="stub">
+        <h2>1. 簡報設定</h2>
+        <div><label for="content">簡報原始內容</label><textarea id="content" rows="8" placeholder="會自動帶入旅遊提示詞，也可以貼上任何想轉成簡報的文字"></textarea></div>
+        <div><label for="vstyle">視覺風格</label><select id="vstyle"><option>專業商務</option><option>簡潔現代</option><option>活潑創意</option><option>故事性</option></select></div>
+        <div><label for="istyle">圖片風格</label><select id="istyle"><option>真實攝影照片</option><option>扁平化插畫</option><option>手繪風格</option></select></div>
+      </div>
+      <div class="main">
+        <h2>2. 簡報 Canvas 提示詞</h2>
+        <button class="btn lt" id="slides-btn"><span>產生簡報提示詞</span><i class="spin hidden" id="slides-spin"></i></button>
+        <textarea id="slides-out" class="out" placeholder="產生的 Gemini Canvas 提示詞會顯示在這裡"></textarea>
+      </div>
+    </div>
+  </section>
+</div>
+<footer>2026 最新整合版</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+  <div class="card">
+    <button class="x" id="close-modal" aria-label="關閉">×</button>
+    <h2 id="mt">如何取得 API Key？</h2>
+    <ol>
+      <li>前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 並登入。</li>
+      <li>點擊 <strong>Create API key</strong> 建立金鑰（以 AQ. 或 AIza 開頭）。</li>
+      <li>複製金鑰，貼到「Google Gemini API Key」欄位。</li>
+      <li>按下 ⚡ 測試連線，系統會自動挑選可用模型。</li>
+    </ol>
+    <p class="hint">按下 💾 可把金鑰存在你的瀏覽器，下次不用重貼。</p>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id), SK='gemini_api_key_travel_planner';
+const store={get:()=>{try{return localStorage.getItem(SK)}catch(e){return null}},set:v=>{try{localStorage.setItem(SK,v)}catch(e){}},del:()=>{try{localStorage.removeItem(SK)}catch(e){}}};
+
+// cursor glow
+addEventListener('pointermove',e=>{$('glow').style.transform=`translate(${e.clientX-260}px,${e.clientY-260}px)`});
+
+const key=$('key'),model=$('model'),custom=$('custom-model');
+const getModel=()=>model.value==='custom'?custom.value.trim():model.value;
+const hint=(t,c)=>{$('model-hint').textContent=t;$('model-hint').style.color=c||''};
+function showError(m){const b=$('error');if(m){$('error-text').textContent=m;b.classList.add('on');scrollTo({top:0,behavior:'smooth'})}else b.classList.remove('on')}
+function status(s,t){$('dot').className='dot '+s;$('st-text').textContent=t}
+function loading(btn,sp,on){btn.disabled=on;sp.classList.toggle('hidden',!on)}
+
+const saved=store.get(); if(saved){key.value=saved;detect(saved,true)}
+model.onchange=()=>{const c=model.value==='custom';custom.classList.toggle('hidden',!c);hint(c?'請輸入完整模型代碼（如 gemini-3.6-flash）':'已選擇模型：'+model.value)};
+$('save').onclick=()=>{const k=key.value.trim();if(!k)return showError('請先輸入 API Key');store.set(k);$('save').textContent='✓';setTimeout(()=>$('save').textContent='💾',1800)};
+$('clear').onclick=()=>{store.del();key.value='';status('','尚未測試');hint('按下 ⚡ 自動偵測可用的最佳模型')};
+$('test').onclick=()=>{const k=key.value.trim();if(!k)return showError('請輸入 API Key 後再測試');showError(null);detect(k,false)};
+
+async function detect(k,silent){
+  status('wait','連線測試中…');$('test').disabled=true;
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(k));
+    if(!r.ok)throw new Error('API Key 無效、格式錯誤或沒有讀取權限');
+    const names=((await r.json()).models||[]).map(m=>m.name.replace('models/',''));
+    const best=['gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash','gemini-2.5-flash'].find(m=>names.includes(m));
+    status('ok','連線成功');
+    if(best){
+      if([...model.options].some(o=>o.value===best)){model.value=best;custom.classList.add('hidden')}
+      else{model.value='custom';custom.value=best;custom.classList.remove('hidden')}
+      hint('偵測成功，已套用：'+best,'#15803d');
+    }else hint('API 有效，但找不到常用模型，請手動輸入','#a16207');
+  }catch(e){status('err','連線失敗');hint('偵測失敗，請確認 API Key','#b91c1c');if(!silent)showError('API Key 測試失敗：'+e.message)}
+  finally{$('test').disabled=false}
+}
+
+async function gemini(k,m,user,sys,text=false,retries=2){
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(k)}`;
+  const body={contents:[{parts:[{text:user}]}],systemInstruction:{parts:[{text:sys}]}};
+  if(!text)body.generationConfig={responseMimeType:'application/json'};
+  for(let a=0;;a++){
+    try{
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!r.ok){
+        const msg=(await r.json().catch(()=>({})))?.error?.message||r.statusText;
+        if(msg.includes('API key not valid'))throw new Error('API Key 無效，請用 ⚡ 測試。');
+        if(msg.includes('no longer available'))throw new Error(`模型 ${m} 已停用，請按 ⚡ 重新偵測。`);
+        throw new Error('API 錯誤：'+msg);
+      }
+      const t=(await r.json()).candidates?.[0]?.content?.parts?.[0]?.text;
+      if(!t)throw new Error('API 回應格式不正確或內容為空');
+      return t;
+    }catch(e){if(a>=retries)throw e;await new Promise(s=>setTimeout(s,2**(a+1)*1000))}
+  }
+}
+
+function chips(box,items,type,name){
+  box.replaceChildren();
+  if(!items.includes('不限'))items.push('不限');
+  items.forEach((v,i)=>{
+    const l=document.createElement('label'),inp=document.createElement('input'),s=document.createElement('span');
+    inp.type=type;inp.name=name;inp.value=v;if(type==='radio'&&v==='不限')inp.checked=true;
+    s.textContent=v;l.append(inp,s);box.append(l);
+  });
+}
+
+$('survey-btn').onclick=async()=>{
+  showError(null);
+  const k=key.value.trim(),m=getModel();
+  if(!k)return showError('請先輸入 Google Gemini API Key。');
+  if(!m)return showError('請選擇或輸入模型名稱。');
+  const dest=$('dest').value.trim()||$('dest-select').value,origin=$('origin').value.trim(),days=$('days').value.trim(),ad=$('adults').value.trim();
+  if(!dest||!origin||!days||!ad||parseInt(ad,10)<=0)return showError('請填寫「旅遊目的地」「出發地」「旅遊天數」，且大人至少 1 位。');
+  loading($('survey-btn'),$('survey-spin'),true);
+  const kids=$('kids').value.trim()||'0',ages=$('ages').value.trim()||'無',needs=$('needs').value.trim()||'無',budget=$('budget').value.trim()||'未指定';
+  const up=`請根據以下旅遊需求，產生建議的「旅遊關鍵字」和「航班偏好」選項。\n目的地: ${dest}, 出發地: ${origin}, 天數: ${days},\n人數: ${ad} 大, ${kids} 小 (歲數: ${parseInt(kids,10)>0?ages:'無'}),\n特殊需求: ${needs}, 預算: ${budget}\n請以JSON格式回傳，結構如：{"keywords":["..."],"flight_preferences":["..."]}`;
+  try{
+    const d=JSON.parse(await gemini(k,m,up,'你是一位專業的旅遊行程規劃顧問。請以JSON格式回傳。'));
+    chips($('kw'),d.keywords||[],'checkbox','kw');chips($('fl'),d.flight_preferences||[],'radio','fl');
+    $('survey').classList.remove('hidden');$('prompt-btn').disabled=false;
+  }catch(e){showError('產生喜好調查失敗：'+e.message)}
+  finally{loading($('survey-btn'),$('survey-spin'),false)}
+};
+
+$('prompt-btn').onclick=async()=>{
+  showError(null);
+  const k=key.value.trim(),m=getModel();
+  if(!k)return showError('請確認已輸入 API Key');
+  if(!m)return showError('請選擇 AI 模型');
+  loading($('prompt-btn'),$('prompt-spin'),true);
+  const kw=[...document.querySelectorAll('#kw input:checked')].map(e=>e.value),fl=document.querySelector('#fl input:checked')?.value||'不限';
+  const dest=$('dest').value.trim()||$('dest-select').value;
+  const up=`請幫我產生一個適合提供給 AI 的詳細旅遊規劃提示詞。\n基本資料: 目的地 ${dest}, 出發 ${$('origin').value}, 天數 ${$('days').value}\n關鍵字: ${kw.length?kw.join(','):'不限'}, 航班喜好: ${fl}\n請擴展並組織成一個邏輯清晰的指令。`;
+  try{
+    const t=await gemini(k,m,up,'你是一位專業的旅遊規劃AI助手。你的輸出只能是這個提示詞，不要有任何額外的對話或解釋。',true);
+    $('prompt-out').value=t;$('content').value=t;
+  }catch(e){showError('產生提示詞失敗：'+e.message)}
+  finally{loading($('prompt-btn'),$('prompt-spin'),false)}
+};
+
+$('copy').onclick=async()=>{
+  const v=$('prompt-out').value;if(!v)return;
+  try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.append(t);t.select();document.execCommand('copy');t.remove()}
+  $('copy').textContent='已複製';setTimeout(()=>$('copy').textContent='複製',1800);
+};
+
+$('slides-btn').onclick=async()=>{
+  showError(null);
+  const k=key.value.trim(),m=getModel();
+  if(!k)return showError('請先在「旅遊行程規劃」輸入 API Key。');
+  loading($('slides-btn'),$('slides-spin'),true);
+  const up=`將以下內容轉換為一份「${$('vstyle').value}」風格、圖片採用「${$('istyle').value}」的簡報逐頁內容（含每頁標題、重點、逐字稿與配圖建議）：\n${$('content').value}`;
+  try{$('slides-out').value=await gemini(k,m,up,'你是一位專業簡報設計師。',true)}
+  catch(e){showError('產生簡報提示詞失敗：'+e.message)}
+  finally{loading($('slides-btn'),$('slides-spin'),false)}
+};
+
+function tab(t){
+  $('p-travel').classList.toggle('hidden',t!=='travel');$('p-slides').classList.toggle('hidden',t!=='slides');
+  $('tab-travel').classList.toggle('on',t==='travel');$('tab-slides').classList.toggle('on',t==='slides');
+}
+$('tab-travel').onclick=()=>tab('travel');$('tab-slides').onclick=()=>tab('slides');
+$('kids').oninput=()=>{const on=parseInt($('kids').value,10)>0;$('ages-box').classList.toggle('hidden',!on);if(!on)$('ages').value=''};
+$('dest-select').onchange=()=>{if($('dest-select').value)$('dest').value=$('dest-select').value};
+$('open-modal').onclick=()=>$('modal').classList.add('on');
+$('close-modal').onclick=()=>$('modal').classList.remove('on');
+$('modal').onclick=e=>{if(e.target===$('modal'))$('modal').classList.remove('on')};
+addEventListener('keydown',e=>{if(e.key==='Escape')$('modal').classList.remove('on')});
+</script>
+</body>
+</html>
